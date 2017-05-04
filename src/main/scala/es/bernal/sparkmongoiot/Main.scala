@@ -9,7 +9,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalog.Column
 
-import net.liftweb.json._
+//import net.liftweb.json._
 
 /**
   * Created by bernal on 25/4/17.
@@ -24,8 +24,8 @@ object Main extends App {
   val ss = SparkSession.builder()
     .master("local")
     .appName("spark-mongo-iot")
-    .config("spark.mongodb.input.uri", "mongodb://" + Constants.ip + "/"+ Constants.database + "." + Constants.collection)
-    .config("spark.mongodb.output.uri", "mongodb://" + Constants.ip + "/"+ Constants.database + "." + Constants.collection)
+    .config("spark.mongodb.input.uri", "mongodb://" + Constants.ip + "/"+ Constants.database + "." + Constants.collectionIn)
+    .config("spark.mongodb.output.uri", "mongodb://" + Constants.ip + "/"+ Constants.database + "." + Constants.collectionOutAgg)
     .getOrCreate()
   import ss.sqlContext.implicits._
 
