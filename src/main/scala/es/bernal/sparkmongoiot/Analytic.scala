@@ -7,8 +7,7 @@ import com.mongodb.spark.rdd.MongoRDD
 import es.bernal.sparkmongoiot.utils.Constants
 import es.bernal.sparkmongoiot.types.DataPoint
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.{Row, SparkSession}
-import org.apache.spark.sql.Column
+import org.apache.spark.sql.{Column, DataFrame, Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
@@ -38,9 +37,9 @@ object Analytic extends App {
 //  val readConfig = ReadConfig(Map("collection" -> "spark", "readPreference.name" -> "secondaryPreferred"), Some(ReadConfig(ss)))
 //  val rdd = MongoSpark.load(ss, readConfig)
   val rdd = MongoSpark.load(ss)
-  rdd.foreach(d => {
-    println(d)
-  })
+//  rdd.foreach(d => {
+//    println(d)
+//  })
 
 //  // to work with jsons, something like this ....
 //  val gson = new Gson
@@ -60,22 +59,66 @@ object Analytic extends App {
     col("datastreamId"), col("deviceId"), col("feedId"), dateProjection,
     col("value")).cache
 
+  // Uso de maps en DataFrames es algo como esto ... (no me funciona)
+//  val rddAux = rddProjected.map {
+//    case Row(organizationId: String, channelId: String, datastreamId: String, deviceId: String, feedId: String, date_epoch: Long, value: String) =>
+//      (organizationId, channelId, datastreamId, deviceId, feedId, date_epoch, value)
+//  }
+//  val rddAux = rddProjected
+
   rddProjected.show()
 
-  // Extreemos la lista de datastreams
-  rddProjected.createOrReplaceTempView("dataPointsViewPlain")
-  val datastreams = ss.sql("select distinct datastreamId from dataPointsViewPlain")
+  // Extraemos la lista de datastreams
+  val datastreams = rddProjected.select("datastreamId").distinct()
 
   val it = datastreams.toLocalIterator()
   val dsList = new ListBuffer[String]()
   while (it.hasNext) {
-    dsList += it.next().getAs[String]("datastreamId")
+    val ds = it.next().getAs[String]("datastreamId")
+    dsList += ds
   }
 
-  println(dsList.toList)
+  val allDs = dsList.toList
 
-  // TODO Calculamos la agregación para cada uno de los datastrams que hemos encontrado
+  // Calculamos la agregación para cada uno de los datastrams que hemos encontrado
+  val ds1 = "device.dmm.location"
+  val rddJoin1 = getDsJoinPart(rddProjected, ds1, allDs)
+  rddJoin1.show
+
+  val ds2 = "device.dmm.path"
+  val rddJoin2 = getDsJoinPart(rddProjected, ds2, allDs)
+  rddJoin2.show
+
+  val ds3 = "device.dmm.operationalStatus"
+  val rddJoin3 = getDsJoinPart(rddProjected, ds3, allDs)
+  rddJoin3.show
+
+  val rddJoined = rddJoin1.union(rddJoin2).union(rddJoin3)
+
+  rddJoined.show()
 
   ss.stop()
+
+
+  def getDsJoinPart(rddProjected: DataFrame, dsName: String, allDs: List[String]): DataFrame = {
+    val rddFiltered = rddProjected.filter($"datastreamId" === dsName)
+    val rddAdapted = rddFiltered.select(col("organizationId"),col("channelId"),
+          col("deviceId"), col("feedId"), col("date_epoch"), col("value"))
+
+    var dsDf = rddAdapted
+
+    for (i <- 0 until allDs.length) {
+      val dsAux = allDs(i)
+      if (dsAux.equals(dsName)) {
+//        val dsProjection: Column = udf((v: String) => {
+//          v
+//        }).apply(col("value"))
+        dsDf = dsDf.withColumn(dsName, col("value"))
+      } else {
+        dsDf = dsDf.withColumn(dsAux,lit(null:String))
+      }
+    }
+    dsDf
+  }
 
 }
