@@ -80,39 +80,89 @@ object Analytic extends App {
 
   val allDs = dsList.toList
 
-  // Calculamos la agregación para cada uno de los datastrams que hemos encontrado
-  val ds1 = "device.dmm.location"
-  val rddJoin1 = getDsJoinPart(rddProjected, ds1, allDs)
-  rddJoin1.show
+  println(allDs)
 
-  val ds2 = "device.dmm.path"
-  val rddJoin2 = getDsJoinPart(rddProjected, ds2, allDs)
-  rddJoin2.show
+  allDs.foreach(ds => {
+    val rddForDs = rddProjected.where($"datastreamId" === ds).cache()
 
-  val ds3 = "device.dmm.operationalStatus"
-  val rddJoin3 = getDsJoinPart(rddProjected, ds3, allDs)
-  rddJoin3.show
+    if (isValueContinuous(rddForDs)) {
+      val rddForDsAgg = rddForDs
+        .groupBy("deviceId", "organizationId", "channelId", "datastreamId")
+        .agg(count("value").as("count"),avg("value").as("avg"),stddev("value").as("stddev"))
+    } else {
+      val rddForDsAgg = rddForDs
+        .groupBy("deviceId", "organizationId", "channelId", "datastreamId", "value")
+        .count()
 
-  val rddJoined = rddJoin1.union(rddJoin2).union(rddJoin3)
+//      //if (ds.equals("climate.weather.temperature"))
+//      if (ds.equals("device.dmm.location"))
+//        rddForDsAgg.show()
+    }
 
-  rddJoined.show()
+
+  })
 
   ss.stop()
 
+  def isValueContinuous(data: DataFrame): Boolean = {
+    val firstRow: Row = data.rdd.take(1)(0)
+    val value = firstRow.getAs[String]("value")
+    try {
+      value.toDouble
+      true
+    } catch {
+      case e: NumberFormatException => {
+        false
+      }
+      case e: NullPointerException => {
+        false
+      }
+
+    }
+  }
+
+  /** *************************************************************************
+    * Este es un tipo de agregacion que busca aplanar toda la estructura
+    * en primera instancia. Habría que explorar como explotar esta informacion
+    * @param rddProjected
+    * @param allDs
+    */
+  def aggPlain(rddProjected: DataFrame, allDs: List[String]): Unit = {
+    val ds1 = "device.dmm.location"
+    val rddJoin1 = getDsJoinPart(rddProjected, ds1, allDs)
+    rddJoin1.show
+
+    val ds2 = "device.dmm.path"
+    val rddJoin2 = getDsJoinPart(rddProjected, ds2, allDs)
+    rddJoin2.show
+
+    val ds3 = "device.dmm.operationalStatus"
+    val rddJoin3 = getDsJoinPart(rddProjected, ds3, allDs)
+    rddJoin3.show
+
+    val rddJoined = rddJoin1.union(rddJoin2).union(rddJoin3)
+
+    rddJoined.show()
+
+    rddJoined.createOrReplaceTempView("datastream_joined")
+    //val agg = ss.sql("select count(device.dmm.location), count(device.dmm.operationalStatus) from datastream_joined")
+
+    //agg.show()
+  }
 
   def getDsJoinPart(rddProjected: DataFrame, dsName: String, allDs: List[String]): DataFrame = {
     val rddFiltered = rddProjected.filter($"datastreamId" === dsName)
     val rddAdapted = rddFiltered.select(col("organizationId"),col("channelId"),
-          col("deviceId"), col("feedId"), col("date_epoch"), col("value"))
+      col("deviceId"), col("feedId"), col("date_epoch"), col("value"))
 
     var dsDf = rddAdapted
 
     for (i <- 0 until allDs.length) {
       val dsAux = allDs(i)
       if (dsAux.equals(dsName)) {
-//        val dsProjection: Column = udf((v: String) => {
-//          v
-//        }).apply(col("value"))
+        //        val dsProjection: Column = udf((v: String) => {
+        //          v
+        //        }).apply(col("value"))
         dsDf = dsDf.withColumn(dsName, col("value"))
       } else {
         dsDf = dsDf.withColumn(dsAux,lit(null:String))
