@@ -5,14 +5,19 @@ import com.mongodb.spark.MongoSpark
 import com.mongodb.spark.config.ReadConfig
 import com.mongodb.spark.rdd.MongoRDD
 import es.bernal.sparkmongoiot.utils.Constants
-import es.bernal.sparkmongoiot.types.DataPoint
+import es.bernal.sparkmongoiot.types._
+import net.liftweb.json.DefaultFormats
+import net.liftweb.json.Serialization.write
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Column, DataFrame, Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
+import org.bson.Document
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
 
 /**
   * Created by bernal on 25/4/17.
@@ -50,13 +55,13 @@ object Analytic extends App {
 //  })
 //  rddJson.foreach(d => println(d))
 
-  // proyectamos la vista inicial para aplanar totalmente
-  val dateProjection: Column = udf((d: GenericRowWithSchema) => {
-    d.getAs[Long]("epoch")
-  }).apply(col("date")).as("date_epoch")
+//  // proyectamos la vista inicial para aplanar totalmente. Forma complicada
+//  val dateProjection: Column = udf((d: GenericRowWithSchema) => {
+//    d.getAs[Long]("epoch")
+//  }).apply(col("date")).as("date_epoch")
 
   val rddProjected = rdd.select(col("organizationId"),col("channelId"),
-    col("datastreamId"), col("deviceId"), col("feedId"), dateProjection,
+    col("datastreamId"), col("deviceId"), col("feedId"), col("date.epoch").as("date_epoch"),
     col("value")).cache
 
   // Uso de maps en DataFrames es algo como esto ... (no me funciona)
@@ -89,14 +94,39 @@ object Analytic extends App {
       val rddForDsAgg = rddForDs
         .groupBy("deviceId", "organizationId", "channelId", "datastreamId")
         .agg(count("value").as("count"),avg("value").as("avg"),stddev("value").as("stddev"))
+
+      // write countinous analytic
+      val rddDocs: RDD[Document] = rddForDsAgg.rdd.map(r => {
+        val dpa = new DataPointAnalyticCnt(r.getAs[String]("deviceId"), r.getAs[Double]("organizationId").toString, r.getAs[Double]("channelId").toString,
+                                        r.getAs[String]("datastreamId"),
+                                        Stats(r.getAs[Long]("count"), r.getAs[Double]("avg"), r.getAs[Double]("stddev")))
+        implicit val formats = DefaultFormats
+        val jsonStr = write(dpa)
+        Document.parse(jsonStr)
+      })
+      MongoSpark.save(rddDocs)
     } else {
       val rddForDsAgg = rddForDs
         .groupBy("deviceId", "organizationId", "channelId", "datastreamId", "value")
         .count()
 
-//      //if (ds.equals("climate.weather.temperature"))
-//      if (ds.equals("device.dmm.location"))
-//        rddForDsAgg.show()
+      // write discrete analytic
+      val rddForDsAggMap = rddForDsAgg.rdd.map(r => ((r.getAs[String]("deviceId"), r.getAs[Double]("organizationId"), r.getAs[Double]("channelId"), r.getAs[String]("datastreamId")),r))
+        .groupByKey()
+
+      val rddDocs: RDD[Document] = rddForDsAggMap.map(t => {
+        var accs = ListBuffer[Accumulator]()
+        t._2.foreach(r => {
+          accs += Accumulator(r.getAs[String]("value"), r.getAs[Long]("count"))
+        })
+        val dpa = DataPointAnalyticDct(t._1._1, t._1._2.toString, t._1._3.toString, t._1._4, accs.toList)
+//        val gson = new Gson
+//        val jsonStr = gson.toJson(dpa)
+        implicit val formats = DefaultFormats
+        val jsonStr = write(dpa)
+        Document.parse(jsonStr)
+      })
+      MongoSpark.save(rddDocs)
     }
 
 
