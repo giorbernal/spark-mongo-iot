@@ -1,10 +1,11 @@
 package es.bernal.sparkmongoiot
 
 import java.io.File
+import java.net.URLClassLoader
 
 import com.google.gson.Gson
 import com.mongodb.spark.MongoSpark
-import es.bernal.sparkmongoiot.types.{DataPoint, DsTime}
+import es.bernal.sparkmongoiot.types.{DataPointCnt, DataPointDct, DataPoint, DsTime}
 import es.bernal.sparkmongoiot.utils.Constants
 import org.apache.spark.rdd.RDD
 //import net.liftweb.json._
@@ -49,25 +50,114 @@ object DataLoader extends App {
 
   })
 
+  ss.close()
+
   def getFiles(): List[(String,String)] = {
-    var files = new ListBuffer[(String,String)]()
+    var files = new ListBuffer[(String)]()
+    var typeFilesMap = new ListBuffer[(String,String)]()
+
+    val path = getClass.getResource("/data")
+    val folder = new File(path.getPath)
+    if (folder.exists && folder.isDirectory)
+      folder.listFiles
+        .toList
+        .foreach(file => files+=file.toURI.getPath)
+
+    files.foreach(file => typeFilesMap += Tuple2(getTypeOfFile(file),file))
 
     // TODO Loop to read all files
     // Test Case
-    files += Tuple2(Constants.PRESENCE,new File(this.getClass.getClassLoader.getResource("data/Presence_2011_02_04.csv").toURI).getPath)
+   // typeFilesMap += Tuple2(Constants.PRESENCE,new File(this.getClass.getClassLoader.getResource("data/Presence_2011_02_04.csv").toURI).getPath)
 
-    files.toList
+    typeFilesMap.toList
   }
 
   // DataPoints Parser
   def parseDataPoint(datastream: String, line: String): DataPoint = {
-    val a: Array[String] = line.split(";")
+    var a: Array[String] = Array()
+    var b: Array[String] = Array()
 
     if ( datastream.equals(Constants.PRESENCE) ) {
-      return DataPoint(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(a(8).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, a(7))
+      a = line.split(';')
+      b = a(5).split('|')
+      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
     }
+    else if ( datastream.equals(Constants.STATUS) ) {
+      a = line.split(';')
+      b = a(4).split('|')
+      return DataPointCnt(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0).toDouble)
+    }
+    else if ( datastream.equals(Constants.INVENTORY_ICC) ) {
+      a = line.split(';')
+      b = a(4).split('|')
+      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+      }
+    else if ( datastream.equals(Constants.INVENTORY_IMEI)) {
+      a = line.split(';')
+      b = a(4).split('|')
+      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+    }
+    else if ( datastream.equals(Constants.INVENTORY_IMSI) ) {
+      a = line.split(';')
+      b = a(4).split('|')
+      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+    }
+    else if ( datastream.equals(Constants.INVENTORY_MANUFACTURER) ) {
+      a = line.split(';')
+      b = a(4).split('|')
+      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(2).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+    }
+    else if ( datastream.equals(Constants.INVENTORY_FIRMWARE) ) {
+      a = line.split(';')
+      b = a(4).split('|')
+      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+    }
+    else if ( datastream.equals(Constants.LOCATION) ) {
+      a = line.split(';')
+      b = a(4).split('|')
+      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+    }
+    else{
+      return DataPointDct(null, null, datastream, null, Constants.ORG, null, DsTime(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, null)
+
+    }
+
     // TODO resto de modelos de datastreams
-    ???
+  }
+
+
+  def getTypeOfFile(filename: String): String ={
+    if(filename.toLowerCase().contains(Constants.PRESENCE)){
+      return Constants.PRESENCE
+    }
+    else if(filename.toLowerCase().contains(Constants.INVENTORY)){
+      if(filename.toLowerCase().contains(Constants.INVENTORY_IMEI)){
+        return Constants.INVENTORY_IMEI
+      }
+      else if(filename.toLowerCase().contains(Constants.INVENTORY_IMSI)){
+        return Constants.INVENTORY_IMSI
+      }
+      else if(filename.toLowerCase().contains(Constants.INVENTORY_MANUFACTURER)){
+        return Constants.INVENTORY_MANUFACTURER
+      }
+      else if(filename.toLowerCase().contains(Constants.INVENTORY_ICC)){
+        return Constants.INVENTORY_ICC
+      }
+      else return Constants.UNDEFINED
+    }
+    else if(filename.toLowerCase().contains(Constants.STATUS)){
+      return Constants.STATUS
+    }
+    else if(filename.toLowerCase().contains(Constants.GPRS_SESSION)){
+      return Constants.GPRS_SESSION
+    }
+    else if(filename.toLowerCase().contains(Constants.LOCATION)){
+      return Constants.LOCATION
+    }
+    else{
+      return Constants.UNDEFINED
+    }
+
   }
 
 }
