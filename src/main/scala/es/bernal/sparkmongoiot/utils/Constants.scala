@@ -5,11 +5,11 @@ package es.bernal.sparkmongoiot.utils
   */
 object Constants {
 
-  val ip: String = "172.19.17.111"
-  val database: String = "test"
-  val collectionIn: String = "test"
+  val ip: String = "localhost"
+  val database: String = "poc"
+  val collectionIn: String = "c_ed_datapoints"
   val collectionOut: String = "c_ed_datapoints"
-  val collectionOutAgg: String = "c_og_analytics_datapoints"
+  val collectionOutAgg: String = "c_ed_analytics_datapoints"
 
   val ORG: String = "Test_organization"
   val PRESENCE: String = "presence"

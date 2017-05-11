@@ -61,7 +61,7 @@ object Analytic extends App {
 //  }).apply(col("date")).as("date_epoch")
 
   val rddProjected = rdd.select(col("organizationId"),col("channelId"),
-    col("datastreamId"), col("deviceId"), col("feedId"), col("date.epoch").as("date_epoch"),
+    col("datastreamId"), col("deviceId"), col("date.epoch").as("date_epoch"),
     col("value")).cache
 
   // Uso de maps en DataFrames es algo como esto ... (no me funciona)
@@ -97,7 +97,7 @@ object Analytic extends App {
 
       // write countinous analytic
       val rddDocs: RDD[Document] = rddForDsAgg.rdd.map(r => {
-        val dpa = new DataPointAnalyticCnt(r.getAs[String]("deviceId"), r.getAs[Double]("organizationId").toString, r.getAs[Double]("channelId").toString,
+        val dpa = new DataPointAnalyticCnt(r.getAs[String]("deviceId"), r.getAs[String]("organizationId"), r.getAs[String]("channelId"),
                                         r.getAs[String]("datastreamId"),
                                         Stats(r.getAs[Long]("count"), r.getAs[Double]("avg"), r.getAs[Double]("stddev")))
         implicit val formats = DefaultFormats
@@ -111,7 +111,7 @@ object Analytic extends App {
         .count()
 
       // write discrete analytic
-      val rddForDsAggMap = rddForDsAgg.rdd.map(r => ((r.getAs[String]("deviceId"), r.getAs[Double]("organizationId"), r.getAs[Double]("channelId"), r.getAs[String]("datastreamId")),r))
+      val rddForDsAggMap = rddForDsAgg.rdd.map(r => ((r.getAs[String]("deviceId"), r.getAs[String]("organizationId"), r.getAs[String]("channelId"), r.getAs[String]("datastreamId")),r))
         .groupByKey()
 
       val rddDocs: RDD[Document] = rddForDsAggMap.map(t => {
@@ -119,7 +119,7 @@ object Analytic extends App {
         t._2.foreach(r => {
           accs += Accumulator(r.getAs[String]("value"), r.getAs[Long]("count"))
         })
-        val dpa = DataPointAnalyticDct(t._1._1, t._1._2.toString, t._1._3.toString, t._1._4, accs.toList)
+        val dpa = DataPointAnalyticDct(t._1._1, t._1._2, t._1._3, t._1._4, accs.toList)
 //        val gson = new Gson
 //        val jsonStr = gson.toJson(dpa)
         implicit val formats = DefaultFormats
