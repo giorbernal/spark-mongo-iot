@@ -3,9 +3,26 @@ package es.bernal.sparkmongoiot.types
 /**
   * Created by bernal on 27/4/17.
   */
-case class DataPoint(val _id: Oid, val feedId: String, val datastreamId: String, val deviceId: String,
+trait DataPoint {
+  val _id: Oid
+  val feedId: String
+  val datastreamId: String
+  val deviceId: String
+  val organizationId: String
+  val channelId: String
+  val date: DsTime
+  val from: DsTime
+}
+
+case class DataPointDct (val _id: Oid, val feedId: String, val datastreamId: String, val deviceId: String,
                      val organizationId: String, val channelId: String,
-                     val date: DsTime, val from: DsTime, val value: String)
+                     val date: DsTime, val from: DsTime, val value: String) extends DataPoint {
+}
+
+case class DataPointCnt (val _id: Oid, val feedId: String, val datastreamId: String, val deviceId: String,
+                         val organizationId: String, val channelId: String,
+                         val date: DsTime, val from: DsTime, val value: Double) extends DataPoint {
+}
 
 class Oid(val oid: String)
 
