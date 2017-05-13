@@ -14,6 +14,7 @@ object Constants {
   val ORG: String = "Test_organization"
   val PRESENCE: String = "presence"
   val STATUS: String = "status"
+  val COVERAGE: String = "coverage"
   val LOCATION: String = "location"
   val GPRS_SESSION: String = "gprs_session"
   val UNDEFINED: String = "undefined"

@@ -61,6 +61,7 @@ object DataLoader extends App {
     if (folder.exists && folder.isDirectory)
       folder.listFiles
         .toList
+        .filter(f => !f.getName.toLowerCase.contains(Constants.GPRS_SESSION))
         .foreach(file => files+=file.toURI.getPath)
 
     files.foreach(file => typeFilesMap += Tuple2(getTypeOfFile(file),file))
@@ -76,55 +77,51 @@ object DataLoader extends App {
   def parseDataPoint(datastream: String, line: String): DataPoint = {
     var a: Array[String] = Array()
     var b: Array[String] = Array()
+    a = line.split(';')
 
-    if ( datastream.equals(Constants.PRESENCE) ) {
-      a = line.split(';')
-      b = a(5).split('|')
-      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
-    }
-    else if ( datastream.equals(Constants.STATUS) ) {
-      a = line.split(';')
-      b = a(4).split('|')
-      return DataPointCnt(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0).toDouble)
-    }
-    else if ( datastream.equals(Constants.INVENTORY_ICC) ) {
-      a = line.split(';')
-      b = a(4).split('|')
-      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
-      }
-    else if ( datastream.equals(Constants.INVENTORY_IMEI)) {
-      a = line.split(';')
-      b = a(4).split('|')
-      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
-    }
-    else if ( datastream.equals(Constants.INVENTORY_IMSI) ) {
-      a = line.split(';')
-      b = a(4).split('|')
-      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
-    }
-    else if ( datastream.equals(Constants.INVENTORY_MANUFACTURER) ) {
-      a = line.split(';')
-      b = a(4).split('|')
-      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(2).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
-    }
-    else if ( datastream.equals(Constants.INVENTORY_FIRMWARE) ) {
-      a = line.split(';')
-      b = a(4).split('|')
-      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
-    }
-    else if ( datastream.equals(Constants.LOCATION) ) {
-      a = line.split(';')
-      b = a(4).split('|')
-      return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
-    }
-    else{
-      return DataPointDct(null, null, datastream, null, Constants.ORG, null, DsTime(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, null)
+    datastream match{
+      case Constants.PRESENCE =>
+        b = a(5).split('|')
+        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
 
+      case Constants.STATUS =>
+        a = line.split(';')
+        b = a(4).split('|')
+        return DataPointCnt(null, null, Constants.COVERAGE, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0).toDouble)
+
+      case Constants.INVENTORY_ICC =>
+        a = line.split(';')
+        b = a(4).split('|')
+        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+
+      case Constants.INVENTORY_IMEI =>
+        a = line.split(';')
+        b = a(4).split('|')
+        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+
+      case Constants.INVENTORY_IMSI =>
+        a = line.split(';')
+        b = a(4).split('|')
+        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+
+      case Constants.INVENTORY_MANUFACTURER =>
+        a = line.split(';')
+        b = a(4).split('|')
+        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(2).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+
+      case Constants.INVENTORY_FIRMWARE =>
+        a = line.split(';')
+        b = a(4).split('|')
+        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+
+      case Constants.LOCATION =>
+        a = line.split(';')
+        b = a(4).split('|')
+        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+      case default => return null
     }
 
-    // TODO resto de modelos de datastreams
   }
-
 
   def getTypeOfFile(filename: String): String ={
     if(filename.toLowerCase().contains(Constants.PRESENCE)){
@@ -148,9 +145,6 @@ object DataLoader extends App {
     else if(filename.toLowerCase().contains(Constants.STATUS)){
       return Constants.STATUS
     }
-    else if(filename.toLowerCase().contains(Constants.GPRS_SESSION)){
-      return Constants.GPRS_SESSION
-    }
     else if(filename.toLowerCase().contains(Constants.LOCATION)){
       return Constants.LOCATION
     }
@@ -159,5 +153,7 @@ object DataLoader extends App {
     }
 
   }
+
+
 
 }
