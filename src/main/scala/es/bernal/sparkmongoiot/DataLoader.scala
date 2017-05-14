@@ -1,15 +1,13 @@
 package es.bernal.sparkmongoiot
 
 import java.io.File
-import java.net.URLClassLoader
 
-import com.google.gson.Gson
 import com.mongodb.spark.MongoSpark
-import es.bernal.sparkmongoiot.types.{DataPointCnt, DataPointDct, DataPoint, DsTime}
+import es.bernal.sparkmongoiot.types.{DataPoint, DataPointCnt, DataPointDct, DsTime}
 import es.bernal.sparkmongoiot.utils.Constants
+import net.liftweb.json.DefaultFormats
+import net.liftweb.json.Serialization.write
 import org.apache.spark.rdd.RDD
-//import net.liftweb.json._
-//import net.liftweb.json.Serialization.write
 import org.apache.spark.sql.SparkSession
 import org.bson.Document
 
@@ -37,10 +35,10 @@ object DataLoader extends App {
     // extracción de documentos
     val dsDocs: RDD[Document] = dsRDD
       .map(dp => {
-//        implicit val formats = DefaultFormats
-//        val jsonStr = write(dp)
-        val gson = new Gson
-        val jsonStr = gson.toJson(dp)
+        implicit val formats = DefaultFormats
+        val jsonStr = write(dp)
+//        val gson = new Gson
+//        val jsonStr = gson.toJson(dp)
         jsonStr
       })
       .map( i => Document.parse(i) )
@@ -61,7 +59,7 @@ object DataLoader extends App {
     if (folder.exists && folder.isDirectory)
       folder.listFiles
         .toList
-        .filter(f => !f.getName.toLowerCase.contains(Constants.GPRS_SESSION))
+        .filter(f => (!f.getName.toLowerCase.contains(Constants.GPRS_SESSION) && f.getName.contains(Constants.CSV)))
         .foreach(file => files+=file.toURI.getPath)
 
     files.foreach(file => typeFilesMap += Tuple2(getTypeOfFile(file),file))
@@ -82,42 +80,42 @@ object DataLoader extends App {
     datastream match{
       case Constants.PRESENCE =>
         b = a(5).split('|')
-        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+        return DataPointDct(null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
 
       case Constants.STATUS =>
         a = line.split(';')
         b = a(4).split('|')
-        return DataPointCnt(null, null, Constants.COVERAGE, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0).toDouble)
+        return DataPointCnt(null, Constants.COVERAGE, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0).toDouble)
 
       case Constants.INVENTORY_ICC =>
         a = line.split(';')
         b = a(4).split('|')
-        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+        return DataPointDct(null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
 
       case Constants.INVENTORY_IMEI =>
         a = line.split(';')
         b = a(4).split('|')
-        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+        return DataPointDct(null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
 
       case Constants.INVENTORY_IMSI =>
         a = line.split(';')
         b = a(4).split('|')
-        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+        return DataPointDct(null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
 
       case Constants.INVENTORY_MANUFACTURER =>
         a = line.split(';')
         b = a(4).split('|')
-        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(2).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+        return DataPointDct(null, datastream, a(1), Constants.ORG, a(0), DsTime(b(2).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
 
       case Constants.INVENTORY_FIRMWARE =>
         a = line.split(';')
         b = a(4).split('|')
-        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+        return DataPointDct(null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
 
       case Constants.LOCATION =>
         a = line.split(';')
         b = a(4).split('|')
-        return DataPointDct(null, null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
+        return DataPointDct(null, datastream, a(1), Constants.ORG, a(0), DsTime(b(1).toLong, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), null, b(0))
       case default => return null
     }
 

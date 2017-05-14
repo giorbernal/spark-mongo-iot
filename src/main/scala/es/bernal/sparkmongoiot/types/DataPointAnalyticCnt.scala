@@ -7,4 +7,6 @@ package es.bernal.sparkmongoiot.types
 case class DataPointAnalyticCnt(val deviceId: String, val organizationId: String, val channelId: String,
                                 val datastreamId: String, val stats: Stats)
 
-case class Stats(val count: Long, val avg: Double, val stddev: Double)
+case class Stats(val count: Long, val avg: Double, val stddev: Double
+                , val max: Double, val min: Double
+                )
