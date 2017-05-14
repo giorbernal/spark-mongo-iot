@@ -5,11 +5,13 @@ package es.bernal.sparkmongoiot.utils
   */
 object Constants {
 
-  val ip: String = "localhost"
+  val ip: String = "192.168.1.209"
   val database: String = "poc"
   val collectionIn: String = "c_ed_datapoints"
   val collectionOut: String = "c_ed_datapoints"
   val collectionOutAgg: String = "c_ed_analytics_datapoints"
+
+  val defaultEvalTime: Long = 86400000 // una dia
 
   val ORG: String = "Test_organization"
   val CSV: String = ".csv"
