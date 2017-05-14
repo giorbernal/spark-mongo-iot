@@ -9,9 +9,11 @@ object Constants {
   val database: String = "poc"
   val collectionIn: String = "c_ed_datapoints"
   val collectionOut: String = "c_ed_datapoints"
-  val collectionOutAgg: String = "c_ed_analytics_datapoints"
+  val collectionOutAgg: String = "c_ed_analytics_datapoints_section"
 
-  val defaultEvalTime: Long = 86400000 // una dia
+  val defaultEvalTime: Long = 3600000l // una hora
+  val maxTime: Long = 1296869399628l
+  val minTime: Long = 1296025107433l
 
   val ORG: String = "Test_organization"
   val CSV: String = ".csv"

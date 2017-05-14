@@ -1,6 +1,7 @@
 package es.bernal.sparkmongoiot
 
 import com.mongodb.spark.MongoSpark
+import com.mongodb.spark.rdd.MongoRDD
 import es.bernal.sparkmongoiot.utils.Constants
 import es.bernal.sparkmongoiot.types._
 import net.liftweb.json.DefaultFormats
@@ -17,9 +18,16 @@ import scala.collection.mutable.ListBuffer
   */
 object Analytic {
 
+  def parseParams(params: Array[String]): (Double) = {
+    val frac_hours: Double = if (params(1) != null) params(1).toDouble else 24*10 // En 10 dias están todos los datos. Ese es el valor por defecto
+    (frac_hours)
+  }
+
   def main(args: Array[String]): Unit = {
 
     println("=> starting spark-mongo-iot sample")
+
+    val (ft: Double) = parseParams(args)
 
     val ss = SparkSession.builder()
       .master("local")
@@ -33,7 +41,9 @@ object Analytic {
 
     //  val readConfig = ReadConfig(Map("collection" -> "spark", "readPreference.name" -> "secondaryPreferred"), Some(ReadConfig(ss)))
     //  val rdd = MongoSpark.load(ss, readConfig)
-    val rdd = MongoSpark.load(ss)
+    val rddMg: MongoRDD[Document] = MongoSpark.load(ss.sparkContext)
+      .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - ft*Constants.defaultEvalTime) + " } } }")))
+    val rdd = rddMg.toDF
 
     //  // proyectamos la vista inicial para aplanar totalmente. Forma complicada
     //  val dateProjection: Column = udf((d: GenericRowWithSchema) => {
