@@ -10,6 +10,8 @@ object Constants {
   val collectionIn: String = "c_ed_datapoints"
   val collectionOut: String = "c_ed_datapoints"
   val collectionOutAgg: String = "c_ed_analytics_datapoints_section"
+  val user: String = ""
+  val password: String = ""
 
   val defaultEvalTime: Long = 3600000l // una hora
   val maxTime: Long = 1296869399628l

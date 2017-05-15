@@ -18,23 +18,45 @@ import scala.collection.mutable.ListBuffer
   */
 object Analytic {
 
-  def parseParams(params: Array[String]): (Double) = {
-    val frac_hours: Double = if (params(1) != null) params(1).toDouble else 24*10 // En 10 dias están todos los datos. Ese es el valor por defecto
-    (frac_hours)
+  def parseParams(params: Array[String]): (Double, String, String, String, String, String) = {
+    if (params.length == 1) {
+      (24*10, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
+    } else if (params.length == 7) {
+      (params(1).toDouble, params(2), params(3), params(4), params(5), params(6))
+    } else if (params.length == 5) {
+      (params(1).toDouble, params(2), params(3), params(4), "", "")
+    } else {
+      throw new RuntimeException("Error in params. Not valid: " + params)
+    }
   }
 
   def main(args: Array[String]): Unit = {
 
     println("=> starting spark-mongo-iot sample")
 
-    val (ft: Double) = parseParams(args)
+    val (nh: Double, ip: String, database: String, output_coll: String, user: String, pwd: String) = parseParams(args)
 
-    val ss = SparkSession.builder()
+    val ssBuilder = SparkSession.builder()
       .master("local")
       .appName("spark-mongo-iot")
-      .config("spark.mongodb.input.uri", "mongodb://" + Constants.ip + "/"+ Constants.database + "." + Constants.collectionIn)
-      .config("spark.mongodb.output.uri", "mongodb://" + Constants.ip + "/"+ Constants.database + "." + Constants.collectionOutAgg)
-      .getOrCreate()
+//      .config("spark.mongodb.input.uri", "mongodb://" + ip + "/"+ database + "." + Constants.collectionIn)
+//      .config("spark.mongodb.output.uri", "mongodb://" + ip + "/"+ database + "." + output_coll)
+      if (user.equals("") && pwd.equals("")) {
+        ssBuilder
+          .config("spark.mongodb.input.uri", "mongodb://" + ip)
+          .config("spark.mongodb.output.uri", "mongodb://" + ip)
+      } else {
+        ssBuilder
+          .config("spark.mongodb.input.uri", "mongodb://" + user + "/" + pwd + "@" + ip)
+          .config("spark.mongodb.output.uri", "mongodb://" + user + "/" + pwd + "@" + ip)
+      }
+    ssBuilder
+      .config("spark.mongodb.input.database", database)
+      .config("spark.mongodb.input.collection", Constants.collectionIn)
+      .config("spark.mongodb.output.database", database)
+      .config("spark.mongodb.output.collection", output_coll)
+
+    val ss = ssBuilder.getOrCreate()
     import ss.sqlContext.implicits._
 
     println("=> config loaded!")
@@ -42,7 +64,7 @@ object Analytic {
     //  val readConfig = ReadConfig(Map("collection" -> "spark", "readPreference.name" -> "secondaryPreferred"), Some(ReadConfig(ss)))
     //  val rdd = MongoSpark.load(ss, readConfig)
     val rddMg: MongoRDD[Document] = MongoSpark.load(ss.sparkContext)
-      .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - ft*Constants.defaultEvalTime) + " } } }")))
+      .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - nh*Constants.defaultEvalTime) + " } } }")))
     val rdd = rddMg.toDF
 
     //  // proyectamos la vista inicial para aplanar totalmente. Forma complicada
