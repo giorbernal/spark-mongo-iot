@@ -20,12 +20,12 @@ object Analytic {
 
   def parseParams(params: Array[String]): (Double, String, String, String, String, String) = {
     if (params.length == 0) {
-      //(24*10, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
-      (0.25, Constants.ip, Constants.database, "c_ed_analytics_datapoints_spark_section", Constants.user, Constants.password)
+      (24*10, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
+      //(0.25, Constants.ip, Constants.database, "c_ed_analytics_datapoints_spark_section", Constants.user, Constants.password)
     } else if (params.length == 6) {
-      (params(1).toDouble, params(2), params(3), params(4), params(5), params(6))
-    } else if (params.length == 5) {
-      (params(1).toDouble, params(2), params(3), params(4), "", "")
+      (params(0).toDouble, params(1), params(2), params(3), params(4), params(5))
+    } else if (params.length == 4) {
+      (params(0).toDouble, params(1), params(2), params(3), "", "")
     } else {
       throw new RuntimeException("Params are not valid: " + params)
     }
