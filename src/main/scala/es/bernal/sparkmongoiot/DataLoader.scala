@@ -23,7 +23,10 @@ object DataLoader extends App {
   val ss = SparkSession.builder()
     .master("local")
     .appName("DataLoader")
-    .config("spark.mongodb.output.uri", "mongodb://" + Constants.ip + "/"+ Constants.database + "." + Constants.collectionOut)
+    .config("spark.mongodb.output.uri", "mongodb://" + Constants.user + ":"+ Constants.password + "@" + Constants.ip + "/" + Constants.database + "." + Constants.collectionOut)
+//    .config("spark.mongodb.output.uri", "mongodb://" + Constants.user + ":"+ Constants.password + "@" + Constants.ip)
+//    .config("spark.mongodb.output.database", Constants.database)
+//    .config("spark.mongodb.output.collection", Constants.collectionOut)
     .getOrCreate()
 
 

@@ -19,14 +19,15 @@ import scala.collection.mutable.ListBuffer
 object Analytic {
 
   def parseParams(params: Array[String]): (Double, String, String, String, String, String) = {
-    if (params.length == 1) {
-      (24*10, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
-    } else if (params.length == 7) {
+    if (params.length == 0) {
+      //(24*10, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
+      (0.25, Constants.ip, Constants.database, "c_ed_analytics_datapoints_spark_section", Constants.user, Constants.password)
+    } else if (params.length == 6) {
       (params(1).toDouble, params(2), params(3), params(4), params(5), params(6))
     } else if (params.length == 5) {
       (params(1).toDouble, params(2), params(3), params(4), "", "")
     } else {
-      throw new RuntimeException("Error in params. Not valid: " + params)
+      throw new RuntimeException("Params are not valid: " + params)
     }
   }
 
@@ -37,29 +38,22 @@ object Analytic {
     val (nh: Double, ip: String, database: String, output_coll: String, user: String, pwd: String) = parseParams(args)
 
     val ssBuilder = SparkSession.builder()
-      .master("local")
+      .master("local[*]")
       .appName("spark-mongo-iot")
-//      .config("spark.mongodb.input.uri", "mongodb://" + ip + "/"+ database + "." + Constants.collectionIn)
-//      .config("spark.mongodb.output.uri", "mongodb://" + ip + "/"+ database + "." + output_coll)
-      if (user.equals("") && pwd.equals("")) {
-        ssBuilder
-          .config("spark.mongodb.input.uri", "mongodb://" + ip)
-          .config("spark.mongodb.output.uri", "mongodb://" + ip)
-      } else {
-        ssBuilder
-          .config("spark.mongodb.input.uri", "mongodb://" + user + "/" + pwd + "@" + ip)
-          .config("spark.mongodb.output.uri", "mongodb://" + user + "/" + pwd + "@" + ip)
-      }
-    ssBuilder
-      .config("spark.mongodb.input.database", database)
-      .config("spark.mongodb.input.collection", Constants.collectionIn)
-      .config("spark.mongodb.output.database", database)
-      .config("spark.mongodb.output.collection", output_coll)
-
+    if (user.equals("") && pwd.equals("")) {
+      ssBuilder
+        .config("spark.mongodb.input.uri", "mongodb://" + ip + "/"+ database + "." + Constants.collectionIn)
+        .config("spark.mongodb.output.uri", "mongodb://" + ip + "/"+ database + "." + output_coll)
+    } else {
+      ssBuilder
+        .config("spark.mongodb.input.uri", "mongodb://" + user + ":" + pwd + "@" + ip + "/" + database + "." + Constants.collectionIn)
+        .config("spark.mongodb.output.uri", "mongodb://" + user + ":" + pwd + "@" + ip + "/" + database + "." + output_coll)
+    }
     val ss = ssBuilder.getOrCreate()
     import ss.sqlContext.implicits._
 
     println("=> config loaded!")
+    val timeini: Long = System.currentTimeMillis()
 
     //  val readConfig = ReadConfig(Map("collection" -> "spark", "readPreference.name" -> "secondaryPreferred"), Some(ReadConfig(ss)))
     //  val rdd = MongoSpark.load(ss, readConfig)
@@ -91,7 +85,7 @@ object Analytic {
     allDs.foreach(ds => {
       val rddForDs = rddProjected.where($"datastreamId" === ds)
 
-      if (isValueContinuous(rddForDs)) {
+      if (isValueContinuous(ds)) {
         val rddForDsAgg = rddForDs
           .groupBy("deviceId", "organizationId", "channelId", "datastreamId")
           .agg(count("value").as("count"),avg("value").as("avg"),stddev("value").as("stddev")
@@ -134,10 +128,15 @@ object Analytic {
 
     })
 
+    val timeend: Long = System.currentTimeMillis()
+
+    println("\nTotal time " + (timeend - timeini)/1000 + " s\n")
+
     ss.stop()
 
   }
 
+  @deprecated
   def isValueContinuous(data: DataFrame): Boolean = {
     val firstRow: Row = data.rdd.take(1)(0)
     try {
@@ -153,5 +152,13 @@ object Analytic {
       }
     }
   }
+
+  def isValueContinuous(ds: String): Boolean = {
+    if (ds.equals("coverage"))
+      true
+    else
+      false
+  }
+
 
 }

@@ -5,13 +5,13 @@ package es.bernal.sparkmongoiot.utils
   */
 object Constants {
 
-  val ip: String = "192.168.1.209"
-  val database: String = "poc"
+  val ip: String = "172.19.18.77"
+  val database: String = "odmtest"
   val collectionIn: String = "c_ed_datapoints"
   val collectionOut: String = "c_ed_datapoints"
-  val collectionOutAgg: String = "c_ed_analytics_datapoints_section"
-  val user: String = ""
-  val password: String = ""
+  val collectionOutAgg: String = "c_ed_analytics_datapoints_spark"
+  val user: String = "odmtest"
+  val password: String = "amplia"
 
   val defaultEvalTime: Long = 3600000l // una hora
   val maxTime: Long = 1296869399628l
