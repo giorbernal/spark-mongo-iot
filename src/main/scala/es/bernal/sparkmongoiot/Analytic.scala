@@ -20,8 +20,7 @@ object Analytic {
 
   def parseParams(params: Array[String]): (Double, String, String, String, String, String) = {
     if (params.length == 0) {
-      (24*10, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
-      //(0.25, Constants.ip, Constants.database, "c_ed_analytics_datapoints_spark_section", Constants.user, Constants.password)
+      (234.5256, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
     } else if (params.length == 6) {
       (params(0).toDouble, params(1), params(2), params(3), params(4), params(5))
     } else if (params.length == 4) {
@@ -38,8 +37,11 @@ object Analytic {
     val (nh: Double, ip: String, database: String, output_coll: String, user: String, pwd: String) = parseParams(args)
 
     val ssBuilder = SparkSession.builder()
-      .master("local[*]")
       .appName("spark-mongo-iot")
+    if (args.length == 0) {
+      ssBuilder
+        .master("local[*]")
+    }
     if (user.equals("") && pwd.equals("")) {
       ssBuilder
         .config("spark.mongodb.input.uri", "mongodb://" + ip + "/"+ database + "." + Constants.collectionIn)
@@ -134,23 +136,6 @@ object Analytic {
 
     ss.stop()
 
-  }
-
-  @deprecated
-  def isValueContinuous(data: DataFrame): Boolean = {
-    val firstRow: Row = data.rdd.take(1)(0)
-    try {
-      val value = firstRow.getAs[String]("value")
-      value.toDouble
-      true
-    } catch {
-      case e: NumberFormatException => {
-        false
-      }
-      case e: NullPointerException => {
-        false
-      }
-    }
   }
 
   def isValueContinuous(ds: String): Boolean = {
