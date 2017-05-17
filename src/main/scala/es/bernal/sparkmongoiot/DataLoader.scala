@@ -24,9 +24,6 @@ object DataLoader extends App {
     .master("local")
     .appName("DataLoader")
     .config("spark.mongodb.output.uri", "mongodb://" + Constants.user + ":"+ Constants.password + "@" + Constants.ip + "/" + Constants.database + "." + Constants.collectionOut)
-//    .config("spark.mongodb.output.uri", "mongodb://" + Constants.user + ":"+ Constants.password + "@" + Constants.ip)
-//    .config("spark.mongodb.output.database", Constants.database)
-//    .config("spark.mongodb.output.collection", Constants.collectionOut)
     .getOrCreate()
 
 
@@ -40,8 +37,6 @@ object DataLoader extends App {
       .map(dp => {
         implicit val formats = DefaultFormats
         val jsonStr = write(dp)
-//        val gson = new Gson
-//        val jsonStr = gson.toJson(dp)
         jsonStr
       })
       .map( i => Document.parse(i) )
@@ -66,10 +61,6 @@ object DataLoader extends App {
         .foreach(file => files+=file.toURI.getPath)
 
     files.foreach(file => typeFilesMap += Tuple2(getTypeOfFile(file),file))
-
-    // TODO Loop to read all files
-    // Test Case
-   // typeFilesMap += Tuple2(Constants.PRESENCE,new File(this.getClass.getClassLoader.getResource("data/Presence_2011_02_04.csv").toURI).getPath)
 
     typeFilesMap.toList
   }

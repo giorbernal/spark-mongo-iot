@@ -63,11 +63,6 @@ object Analytic {
       .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - nh*Constants.defaultEvalTime) + " } } }")))
     val rdd = rddMg.toDF
 
-    //  // proyectamos la vista inicial para aplanar totalmente. Forma complicada
-    //  val dateProjection: Column = udf((d: GenericRowWithSchema) => {
-    //    d.getAs[Long]("epoch")
-    //  }).apply(col("date")).as("date_epoch")
-
     val rddProjected = rdd.select(col("organizationId"),col("channelId"),
       col("datastreamId"), col("deviceId"), col("date.epoch").as("date_epoch"),
       col("value")).cache
