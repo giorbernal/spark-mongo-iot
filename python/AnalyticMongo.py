@@ -34,6 +34,7 @@ blockSize=1000
 # TODO I don't know how to insert variables in this objets ... :_(
 # timeThreshold = 1296025107432 # complete
 # timeThreshold = 1296782999628 # 1 day
+# timeThreshold = 1296865799628 # 1 hour
 # timeThreshold = 1296868499628 # 15 minutes
 
 pipelineContinuousCoverage = [
