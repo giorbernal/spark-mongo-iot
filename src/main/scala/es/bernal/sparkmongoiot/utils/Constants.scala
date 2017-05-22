@@ -13,6 +13,11 @@ object Constants {
   val user: String = "odmtest"
   val password: String = "amplia"
 
+  // Hadoop config
+  val hdfsPath: String = "ed_datapoints"
+  val modeMongoConn: String = "MONGO"
+  val modeHadoopConn: String = "HADOOP"
+
   val defaultEvalTime: Long = 3600000l // una hora
   val maxTime: Long = 1296869399628l
   val minTime: Long = 1296025107433l
