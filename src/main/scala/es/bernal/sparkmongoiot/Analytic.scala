@@ -18,13 +18,13 @@ import scala.collection.mutable.ListBuffer
   */
 object Analytic {
 
-  def parseParams(params: Array[String]): (Double, String, String, String, String, String) = {
+  def parseParams(params: Array[String]): (Double, String, String, String, String, String, String) = {
     if (params.length == 0) {
-      (234.5256, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
-    } else if (params.length == 6) {
-      (params(0).toDouble, params(1), params(2), params(3), params(4), params(5))
-    } else if (params.length == 4) {
-      (params(0).toDouble, params(1), params(2), params(3), "", "")
+      (234.5256, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password, "MONGO")
+    } else if (params.length == 7) {
+      (params(0).toDouble, params(1), params(2), params(3), params(4), params(5), params(6))
+    } else if (params.length == 5) {
+      (params(0).toDouble, params(1), params(2), params(3), "", "", params(4))
     } else {
       throw new RuntimeException("Params are not valid: " + params)
     }
@@ -34,7 +34,7 @@ object Analytic {
 
     println("=> starting spark-mongo-iot sample")
 
-    val (nh: Double, ip: String, database: String, output_coll: String, user: String, pwd: String) = parseParams(args)
+    val (nh: Double, ip: String, database: String, output_coll: String, user: String, pwd: String, mode: String) = parseParams(args)
 
     val ssBuilder = SparkSession.builder()
       .appName("spark-mongo-iot")
@@ -57,11 +57,25 @@ object Analytic {
     println("=> config loaded!")
     val timeini: Long = System.currentTimeMillis()
 
-    //  val readConfig = ReadConfig(Map("collection" -> "spark", "readPreference.name" -> "secondaryPreferred"), Some(ReadConfig(ss)))
-    //  val rdd = MongoSpark.load(ss, readConfig)
-    val rddMg: MongoRDD[Document] = MongoSpark.load(ss.sparkContext)
-      .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - nh*Constants.defaultEvalTime) + " } } }")))
-    val rdd = rddMg.toDF
+    var rdd: DataFrame = null
+
+    if (mode.equals(Constants.modeHadoopConn)) {
+
+      val hadoopRdd: RDD[String] = ss.sparkContext.textFile(Constants.my_hdfs_fs + "/" + Constants.hdfsPath)
+      val rddMg = hadoopRdd.map(s => {
+        val doc = Document.parse(s)
+        doc
+      })
+      // TODO Hay que sacar un DataFrame de aqui a traves del parsing a una case class
+      //rdd = rddMg.toDF()
+
+    } else if (mode.equals(Constants.modeMongoConn)) {
+      //  val readConfig = ReadConfig(Map("collection" -> "spark", "readPreference.name" -> "secondaryPreferred"), Some(ReadConfig(ss)))
+      //  val rdd = MongoSpark.load(ss, readConfig)
+      val rddMg: MongoRDD[Document] = MongoSpark.load(ss.sparkContext)
+        .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - nh*Constants.defaultEvalTime) + " } } }")))
+      rdd = rddMg.toDF()
+    }
 
     val rddProjected = rdd.select(col("organizationId"),col("channelId"),
       col("datastreamId"), col("deviceId"), col("date.epoch").as("date_epoch"),

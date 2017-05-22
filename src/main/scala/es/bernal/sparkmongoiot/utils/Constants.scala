@@ -15,6 +15,7 @@ object Constants {
 
   // Hadoop config
   val hdfsPath: String = "ed_datapoints"
+  val my_hdfs_fs: String = "hdfs"
   val modeMongoConn: String = "MONGO"
   val modeHadoopConn: String = "HADOOP"
 
