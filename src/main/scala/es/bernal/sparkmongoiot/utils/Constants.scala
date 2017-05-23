@@ -14,7 +14,8 @@ object Constants {
   val password: String = "amplia"
 
   // Hadoop config
-  val hdfsPath: String = "ed_datapoints"
+  val hdfsFile: String = "ed_datapoints"
+  val hdfsHostPort: String = "apolo:9000"
   val my_hdfs_fs: String = "hdfs"
   val modeMongoConn: String = "MONGO"
   val modeHadoopConn: String = "HADOOP"

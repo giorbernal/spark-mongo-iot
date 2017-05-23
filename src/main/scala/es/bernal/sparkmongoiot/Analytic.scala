@@ -20,7 +20,7 @@ object Analytic {
 
   def parseParams(params: Array[String]): (Double, String, String, String, String, String, String) = {
     if (params.length == 0) {
-      (234.5256, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password, "apolo")
+      (234.5256, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password, Constants.hdfsHostPort)
     } else if (params.length == 7) {
       (params(0).toDouble, params(1), params(2), params(3), params(4), params(5), params(6))
     } else if (params.length == 5) {
@@ -34,7 +34,7 @@ object Analytic {
 
     println("=> starting spark-mongo-iot sample")
 
-    val (nh: Double, ip: String, database: String, output_coll: String, user: String, pwd: String, mode: String) = parseParams(args)
+    val (nh: Double, ip: String, database: String, output_coll: String, user: String, pwd: String, modeOrHdfsHostPort: String) = parseParams(args)
 
     val ssBuilder = SparkSession.builder()
       .appName("spark-mongo-iot")
@@ -59,29 +59,36 @@ object Analytic {
 
     var rdd: DataFrame = null
 
-    if (!mode.equals(Constants.modeMongoConn)) {
+    // setting DataFrame //////////////////
+    if (!modeOrHdfsHostPort.equals(Constants.modeMongoConn)) {
+      // Load Data from Hadoop. Constant File ed_datapoints. First param 'nh' (Number of hours) is ignored
 
       if (args.length == 0) {
-        val hadoopRdd: RDD[String] = ss.sparkContext.textFile(Constants.my_hdfs_fs + "/" + Constants.hdfsPath)
+        val hadoopRdd: RDD[String] = ss.sparkContext.textFile(Constants.my_hdfs_fs + "/" + Constants.hdfsFile)
         rdd = ss.read.json(hadoopRdd)
       } else {
-        val hadoopRdd: RDD[String] = ss.sparkContext.textFile("hdfs://" + mode + ":9000/ed_datapoints")
+        val hadoopRdd: RDD[String] = ss.sparkContext.textFile("hdfs://" + modeOrHdfsHostPort + "/" + Constants.hdfsFile)
         rdd = ss.read.json(hadoopRdd)
       }
 
     } else {
+      // Load Data from Mongo by Spark MongoDB Connector
+
       //  val readConfig = ReadConfig(Map("collection" -> "spark", "readPreference.name" -> "secondaryPreferred"), Some(ReadConfig(ss)))
       //  val rdd = MongoSpark.load(ss, readConfig)
       val rddMg: MongoRDD[Document] = MongoSpark.load(ss.sparkContext)
         .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - nh*Constants.defaultEvalTime) + " } } }")))
       rdd = rddMg.toDF()
     }
+    //////////////////////////////////////
+
+    // From here, work with DataFrame
 
     val rddProjected = rdd.select(col("organizationId"),col("channelId"),
       col("datastreamId"), col("deviceId"), col("date.epoch").as("date_epoch"),
       col("value")).cache
 
-    // Extraemos la lista de datastreams
+    // Extract list of datastreams
     val datastreams = rddProjected.select("datastreamId").distinct()
 
     val it = datastreams.toLocalIterator()
