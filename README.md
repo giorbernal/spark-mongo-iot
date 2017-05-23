@@ -5,7 +5,7 @@ In this projects there are 4 diferent small applications for testing porpouses, 
 ## DataLoader
 Aplication to load Ed* data from .csv to datapoint info in **c_ed_datapoint** collection in mongo database. All .csv must be included at *resources/data* (.csv not included)
 
-## LoadDataToHadoo
+## LoadDataToHadoop
 The application, obviously, load data from MongoDB to Hadoop, it can be do it by using both connectors (Hadoop MongoDB Connector / Spark MongoDB Connector) to compare earch other.
 **Example 1:** Load last 24 hours data from my mongo database *mydb* located in 172.19.18.77, collection *c_ed_datapoints* (user: *myuser* / pwd: *mypwd*) and store data in Hadoop NFDS located in hadoopNfds:8020 by using the Spark MongoDB Connector
 ```sh
@@ -62,4 +62,5 @@ spark-submit \
  1 172.19.18.77 mydb c_ed_analytics_datapoints myuser mypwd MONGO
 ```
 ## SimpleMongoData
-The simple application just read data from MongoDB by using again Spark Mongo Connector and clone it in another collection. This application search to look up the effects to avoid the *shuffling* issue.
+The simple application just read data from MongoDB by using again Spark Mongo Connector and clone it in another collection. This application searchs to look up the effects to avoid the *shuffling* issue.
+
