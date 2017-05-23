@@ -30,7 +30,7 @@ spark-submit \
  --total-executor-cores 12 \
  --executor-memory 4G \
 /data/analytics-0.6.jar  \
-24 172.19.18.77 mydb ed_datapoints myuser mypwd hadoopNfds:8020 Hadoop
+24 172.19.18.77 mydb ed_datapoints myuser mypwd hadoopNfds:8020 HADOOP
 ```
 
 ## Analytic
