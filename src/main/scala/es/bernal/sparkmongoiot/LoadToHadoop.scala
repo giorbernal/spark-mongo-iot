@@ -20,11 +20,11 @@ import scala.collection.mutable.ListBuffer
   */
 object LoadToHadoop {
 
-  def parseParams(params: Array[String]): (String, String, String, String, String, String) = {
+  def parseParams(params: Array[String]): (Double, String, String, String, String, String, String) = {
     if (params.length == 0) {
-      (Constants.ip, Constants.database, Constants.hdfsPath, Constants.user, Constants.password, "MONGO")
-    } else if (params.length == 6) {
-      (params(0), params(1), params(2), params(3), params(4), params(5))
+      (240, Constants.ip, Constants.database, Constants.hdfsPath, Constants.user, Constants.password, "MONGO")
+    } else if (params.length == 7) {
+      (params(0).toDouble, params(1), params(2), params(3), params(4), params(5), params(6))
     } else {
       throw new RuntimeException("Params are not valid: " + params)
     }
@@ -32,20 +32,17 @@ object LoadToHadoop {
 
   def main(args: Array[String]): Unit = {
 
-    val (ip: String, database: String, hdfsPath: String, user: String, pwd: String, mode: String) = parseParams(args)
+    val (nh: Double, ip: String, database: String, hdfsPath: String, user: String, pwd: String, mode: String) = parseParams(args)
 
     println("=> starting LoadToHadoop application. mode: " + mode)
 
     if (mode.equals(Constants.modeHadoopConn)) {
       val conf = new SparkConf().setAppName("LoadToHadoop")
       val config = new Configuration()
+      config.set("mongo.input.uri", "mongodb://" + user + ":" + pwd + "@" + ip + "/" + database + "." + Constants.collectionIn)
 
       if (args.length == 0) {
         conf.setMaster("local")
-        config.set("mongo.input.uri", "mongodb://" + ip + "/" + database + "." + Constants.collectionIn)
-      } else {
-        config.set("mongo.input.uri", "mongodb://" + user + ":" + pwd + "@" + ip + "/" + database + "." + Constants.collectionIn)
-
       }
       val sc = new SparkContext(conf)
 
@@ -61,7 +58,7 @@ object LoadToHadoop {
       if (args.length == 0)
         ipRDD.saveAsTextFile(Constants.my_hdfs_fs + "/" + hdfsPath)
       else
-        ipRDD.saveAsTextFile("hdfs://" + hdfsPath)
+        ipRDD.saveAsTextFile("hdfs://apolo:9000/" + hdfsPath)
 
       val timeend: Long = System.currentTimeMillis()
 
@@ -76,11 +73,6 @@ object LoadToHadoop {
       if (args.length == 0) {
         ssBuilder
           .master("local")
-          .config("spark.mongodb.input.uri", "mongodb://" + ip + "/" + database + "." + Constants.collectionIn)
-      } else {
-        ssBuilder
-          .config("spark.mongodb.input.uri", "mongodb://" + user + ":" + pwd + "@" + ip + "/" + database + "." + Constants.collectionIn)
-
       }
       val ss = ssBuilder.getOrCreate()
       import ss.sqlContext.implicits._
@@ -89,12 +81,12 @@ object LoadToHadoop {
       val timeini: Long = System.currentTimeMillis()
 
       val rddMg: MongoRDD[Document] = MongoSpark.load(ss.sparkContext)
-        .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - 240*Constants.defaultEvalTime) + " } } }")))
+        .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - nh*Constants.defaultEvalTime) + " } } }")))
 
       if (args.length == 0)
         rddMg.map(d => d.toJson).saveAsTextFile(Constants.my_hdfs_fs +"/" + hdfsPath)
       else
-        rddMg.map(d => d.toJson).saveAsTextFile("hdfs://" + hdfsPath)
+        rddMg.map(d => d.toJson).saveAsTextFile("hdfs://apolo:9000/" + hdfsPath)
 
       val timeend: Long = System.currentTimeMillis()
 

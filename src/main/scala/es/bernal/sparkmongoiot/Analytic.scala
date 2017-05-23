@@ -20,7 +20,7 @@ object Analytic {
 
   def parseParams(params: Array[String]): (Double, String, String, String, String, String, String) = {
     if (params.length == 0) {
-      (234.5256, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password, "MONGO")
+      (234.5256, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password, "apolo")
     } else if (params.length == 7) {
       (params(0).toDouble, params(1), params(2), params(3), params(4), params(5), params(6))
     } else if (params.length == 5) {
@@ -59,17 +59,17 @@ object Analytic {
 
     var rdd: DataFrame = null
 
-    if (mode.equals(Constants.modeHadoopConn)) {
+    if (!mode.equals(Constants.modeMongoConn)) {
 
-      val hadoopRdd: RDD[String] = ss.sparkContext.textFile(Constants.my_hdfs_fs + "/" + Constants.hdfsPath)
-      val rddMg = hadoopRdd.map(s => {
-        val doc = Document.parse(s)
-        doc
-      })
-      // TODO Hay que sacar un DataFrame de aqui a traves del parsing a una case class
-      //rdd = rddMg.toDF()
+      if (args.length == 0) {
+        val hadoopRdd: RDD[String] = ss.sparkContext.textFile(Constants.my_hdfs_fs + "/" + Constants.hdfsPath)
+        rdd = ss.read.json(hadoopRdd)
+      } else {
+        val hadoopRdd: RDD[String] = ss.sparkContext.textFile("hdfs://" + mode + ":9000/ed_datapoints")
+        rdd = ss.read.json(hadoopRdd)
+      }
 
-    } else if (mode.equals(Constants.modeMongoConn)) {
+    } else {
       //  val readConfig = ReadConfig(Map("collection" -> "spark", "readPreference.name" -> "secondaryPreferred"), Some(ReadConfig(ss)))
       //  val rdd = MongoSpark.load(ss, readConfig)
       val rddMg: MongoRDD[Document] = MongoSpark.load(ss.sparkContext)
