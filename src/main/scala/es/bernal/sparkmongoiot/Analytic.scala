@@ -98,7 +98,7 @@ object Analytic {
       dsList += ds
     }
 
-    val allDs = dsList.toList
+    val allDs = dsList.toList.par
 
     allDs.foreach(ds => {
       val rddForDs = rddProjected.where($"datastreamId" === ds)
