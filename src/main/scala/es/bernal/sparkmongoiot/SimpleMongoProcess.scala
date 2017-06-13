@@ -18,40 +18,68 @@ import scala.collection.mutable.ListBuffer
   */
 object SimpleMongoProcess {
 
-  def parseParams(params: Array[String]): (Double, String, String, String, String, String) = {
-    if (params.length == 0) {
-      //(234.5256, Constants.ip, Constants.database, Constants.collectionOutAgg, Constants.user, Constants.password)
-      (234.5256, Constants.ip, Constants.database, "c_ed_datapoints_clone", Constants.user, Constants.password)
-    } else if (params.length == 6) {
-      (params(0).toDouble, params(1), params(2), params(3), params(4), params(5))
-    } else if (params.length == 4) {
-      (params(0).toDouble, params(1), params(2), params(3), "", "")
-    } else {
-      throw new RuntimeException("Params are not valid: " + params)
+  // Basic parameter classes
+  trait Environment
+  case class Local(
+                    val hours: Double = 234.5256,
+                    val ip: String = Constants.ip,
+                    val database: String = Constants.database,
+                    val outputCollection: String = Constants.collectionOutAgg,
+                    val user: String = Constants.user,
+                    val password: String = Constants.password
+  ) extends Environment {
+
+  }
+  case class Cluster(val params: Array[String]) extends Environment
+  case class LocalCluster() extends Cluster()
+  case class RemoteCluster() extends Cluster()
+
+  // Type Class definition
+  trait Configurator[T] {
+    def getHours(t: T): Double
+    def getSparkSessionBuilder(t: T): SparkSession.Builder
+  }
+
+  // Type Class implementation
+  object LocalConfigurator extends Configurator[Local] {
+    def getHours(t: Local): Double = t.hours
+    def getSparkSessionBuilder(t: Local): SparkSession.Builder = {
+      val ssBuilder = SparkSession.builder()
+        .appName("SampleMongoProcess")
+        .master("local[*]")
+        .config("spark.mongodb.input.uri", "mongodb://" + t.user + ":" + t.password + "@" + t.ip + "/" + t.password + "." + Constants.collectionIn)
+        .config("spark.mongodb.output.uri", "mongodb://" + t.user + ":" + t.password + "@" + t.ip + "/" + t.password + "." + t.outputCollection)
+      ssBuilder
     }
   }
 
-  def main(args: Array[String]): Unit = {
+  object LocalClusterConfigurator extends Configurator[LocalCluster] {
+    def getHours(t: LocalCluster): Double = (t.params)(0).toDouble
+    def getSparkSessionBuilder(t: LocalCluster): SparkSession.Builder = {
+      val ssBuilder = SparkSession.builder()
+        .appName("SampleMongoProcess")
+        .config("spark.mongodb.input.uri", "mongodb://" + (t.params)(1) + "/"+ (t.params)(2) + "." + Constants.collectionIn)
+        .config("spark.mongodb.output.uri", "mongodb://" + (t.params)(1) + "/"+ (t.params)(3) + "." + (t.params)(3))
+      ssBuilder
+    }
+  }
 
+  object RemoteClusterConfigurator extends Configurator[RemoteCluster] {
+    def getHours(t: RemoteCluster): Double = (t.params)(0).toDouble
+    def getSparkSessionBuilder(t: RemoteCluster): SparkSession.Builder = {
+      val ssBuilder = SparkSession.builder()
+        .appName("SampleMongoProcess")
+        .config("spark.mongodb.input.uri", "mongodb://" + (t.params)(4) + ":" + (t.params)(5) + "@" + (t.params)(1) + "/" + (t.params)(2) + "." + Constants.collectionIn)
+        .config("spark.mongodb.output.uri", "mongodb://" + (t.params)(4) + ":" + (t.params)(5) + "@" + (t.params)(1) + "/" + (t.params)(2) + "." + (t.params)(3))
+      ssBuilder
+    }
+  }
+
+  // Polymorphic function
+  def SimpleMongoProcessFunction[T](configurator: Configurator[T], t: T): Unit = {
     println("=> starting Sample Mongo Process")
+    val ssBuilder = configurator.getSparkSessionBuilder(t)
 
-    val (nh: Double, ip: String, database: String, output_coll: String, user: String, pwd: String) = parseParams(args)
-
-    val ssBuilder = SparkSession.builder()
-      .appName("SampleMongoProcess")
-    if (args.length == 0) {
-      ssBuilder
-        .master("local[*]")
-    }
-    if (user.equals("") && pwd.equals("")) {
-      ssBuilder
-        .config("spark.mongodb.input.uri", "mongodb://" + ip + "/"+ database + "." + Constants.collectionIn)
-        .config("spark.mongodb.output.uri", "mongodb://" + ip + "/"+ database + "." + output_coll)
-    } else {
-      ssBuilder
-        .config("spark.mongodb.input.uri", "mongodb://" + user + ":" + pwd + "@" + ip + "/" + database + "." + Constants.collectionIn)
-        .config("spark.mongodb.output.uri", "mongodb://" + user + ":" + pwd + "@" + ip + "/" + database + "." + output_coll)
-    }
     val ss = ssBuilder.getOrCreate()
     import ss.sqlContext.implicits._
 
@@ -59,19 +87,31 @@ object SimpleMongoProcess {
     val timeini: Long = System.currentTimeMillis()
 
     val rddMg: MongoRDD[Document] = MongoSpark.load(ss.sparkContext)
-      .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - nh*Constants.defaultEvalTime) + " } } }")))
+      .withPipeline(Seq(Document.parse("{ $match: { \"date.epoch\" : { $gt : " + (Constants.maxTime - configurator.getHours(t)*Constants.defaultEvalTime) + " } } }")))
 
-    if (output_coll.equals("null")) {
-      println("Number of output elements elements: " + rddMg.count())
-    } else {
-      MongoSpark.save(rddMg)
-    }
+    MongoSpark.save(rddMg)
 
     val timeend: Long = System.currentTimeMillis()
 
     println("\nTotal time " + (timeend - timeini)/1000 + " s\n")
 
     ss.stop()
+
+
+  }
+
+  // Main application
+  def main(args: Array[String]): Unit = {
+
+      if (args.size == 0) {
+        SimpleMongoProcessFunction(LocalConfigurator, Local)
+      } else if (args.size == 6) {
+        SimpleMongoProcessFunction(RemoteClusterConfigurator, RemoteCluster)
+      } else if (args.size == 4) {
+        SimpleMongoProcessFunction(LocalClusterConfigurator, LocalCluster)
+      } else {
+        throw new Throwable("invalid params")
+      }
 
   }
 
