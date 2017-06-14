@@ -2,16 +2,9 @@ package es.bernal.sparkmongoiot
 
 import com.mongodb.spark.MongoSpark
 import com.mongodb.spark.rdd.MongoRDD
-import es.bernal.sparkmongoiot.types._
 import es.bernal.sparkmongoiot.utils.Constants
-import net.liftweb.json.DefaultFormats
-import net.liftweb.json.Serialization.write
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions._
 import org.bson.Document
-
-import scala.collection.mutable.ListBuffer
 
 /**
   * Created by bernal on 25/4/17.
@@ -20,6 +13,12 @@ object SimpleMongoProcess {
 
   // Basic parameter classes
   trait Environment
+  case class Home(
+                    val hours: Double = 234.5256,
+                    val ip: String = Constants.ip,
+                    val database: String = Constants.database,
+                    val outputCollection: String = Constants.collectionOutAgg
+                  ) extends Environment
   case class Local(
                     val hours: Double = 234.5256,
                     val ip: String = Constants.ip,
@@ -27,52 +26,71 @@ object SimpleMongoProcess {
                     val outputCollection: String = Constants.collectionOutAgg,
                     val user: String = Constants.user,
                     val password: String = Constants.password
-  ) extends Environment {
-
+                  ) extends Environment
+  abstract class Cluster extends Environment {
+     def params: Array[String]
   }
-  case class Cluster(val params: Array[String]) extends Environment
-  case class LocalCluster() extends Cluster()
-  case class RemoteCluster() extends Cluster()
+  case class LocalCluster(val params: Array[String]) extends Cluster
+  case class RemoteCluster(val params: Array[String]) extends Cluster
 
-  // Type Class definition
+  // Type Class interface
   trait Configurator[T] {
     def getHours(t: T): Double
     def getSparkSessionBuilder(t: T): SparkSession.Builder
   }
 
-  // Type Class implementation
-  object LocalConfigurator extends Configurator[Local] {
-    def getHours(t: Local): Double = t.hours
-    def getSparkSessionBuilder(t: Local): SparkSession.Builder = {
-      val ssBuilder = SparkSession.builder()
-        .appName("SampleMongoProcess")
-        .master("local[*]")
-        .config("spark.mongodb.input.uri", "mongodb://" + t.user + ":" + t.password + "@" + t.ip + "/" + t.password + "." + Constants.collectionIn)
-        .config("spark.mongodb.output.uri", "mongodb://" + t.user + ":" + t.password + "@" + t.ip + "/" + t.password + "." + t.outputCollection)
-      ssBuilder
-    }
-  }
+  object Configurator extends ConfiguratorInstances
 
-  object LocalClusterConfigurator extends Configurator[LocalCluster] {
-    def getHours(t: LocalCluster): Double = (t.params)(0).toDouble
-    def getSparkSessionBuilder(t: LocalCluster): SparkSession.Builder = {
-      val ssBuilder = SparkSession.builder()
-        .appName("SampleMongoProcess")
-        .config("spark.mongodb.input.uri", "mongodb://" + (t.params)(1) + "/"+ (t.params)(2) + "." + Constants.collectionIn)
-        .config("spark.mongodb.output.uri", "mongodb://" + (t.params)(1) + "/"+ (t.params)(3) + "." + (t.params)(3))
-      ssBuilder
-    }
-  }
+  // Type Class instances
+  trait ConfiguratorInstances {
+    def apply[T](implicit ev: Configurator[T]) = ev
 
-  object RemoteClusterConfigurator extends Configurator[RemoteCluster] {
-    def getHours(t: RemoteCluster): Double = (t.params)(0).toDouble
-    def getSparkSessionBuilder(t: RemoteCluster): SparkSession.Builder = {
-      val ssBuilder = SparkSession.builder()
-        .appName("SampleMongoProcess")
-        .config("spark.mongodb.input.uri", "mongodb://" + (t.params)(4) + ":" + (t.params)(5) + "@" + (t.params)(1) + "/" + (t.params)(2) + "." + Constants.collectionIn)
-        .config("spark.mongodb.output.uri", "mongodb://" + (t.params)(4) + ":" + (t.params)(5) + "@" + (t.params)(1) + "/" + (t.params)(2) + "." + (t.params)(3))
-      ssBuilder
+    implicit def homeInstance = new Configurator[Home] {
+      def getHours(t: Home): Double = t.hours
+      def getSparkSessionBuilder(t: Home): SparkSession.Builder = {
+        val ssBuilder = SparkSession.builder()
+          .appName("SampleMongoProcess")
+          .master("local[*]")
+          .config("spark.mongodb.input.uri", "mongodb://" + t.ip + "/" + t.database + "." + Constants.collectionIn)
+          .config("spark.mongodb.output.uri", "mongodb://" + t.ip + "/" + t.database + "." + t.outputCollection)
+        ssBuilder
+      }
     }
+
+    implicit def localInstance = new Configurator[Local] {
+      def getHours(t: Local): Double = t.hours
+      def getSparkSessionBuilder(t: Local): SparkSession.Builder = {
+        val ssBuilder = SparkSession.builder()
+          .appName("SampleMongoProcess")
+          .master("local[*]")
+          .config("spark.mongodb.input.uri", "mongodb://" + t.user + ":" + t.password + "@" + t.ip + "/" + t.database + "." + Constants.collectionIn)
+          .config("spark.mongodb.output.uri", "mongodb://" + t.user + ":" + t.password + "@" + t.ip + "/" + t.database + "." + t.outputCollection)
+        ssBuilder
+      }
+    }
+
+    implicit def localClusterInstance = new Configurator[LocalCluster] {
+      def getHours(t: LocalCluster): Double = (t.params)(0).toDouble
+      def getSparkSessionBuilder(t: LocalCluster): SparkSession.Builder = {
+        val ssBuilder = SparkSession.builder()
+          .appName("SampleMongoProcess")
+          .config("spark.mongodb.input.uri", "mongodb://" + (t.params)(1) + "/"+ (t.params)(2) + "." + Constants.collectionIn)
+          .config("spark.mongodb.output.uri", "mongodb://" + (t.params)(1) + "/"+ (t.params)(3) + "." + (t.params)(3))
+        ssBuilder
+      }
+    }
+
+    implicit def remoteClusterInstance = new Configurator[RemoteCluster] {
+      def getHours(t: RemoteCluster): Double = (t.params)(0).toDouble
+      def getSparkSessionBuilder(t: RemoteCluster): SparkSession.Builder = {
+        val ssBuilder = SparkSession.builder()
+          .appName("SampleMongoProcess")
+          .config("spark.mongodb.input.uri", "mongodb://" + (t.params)(4) + ":" + (t.params)(5) + "@" + (t.params)(1) + "/" + (t.params)(2) + "." + Constants.collectionIn)
+          .config("spark.mongodb.output.uri", "mongodb://" + (t.params)(4) + ":" + (t.params)(5) + "@" + (t.params)(1) + "/" + (t.params)(2) + "." + (t.params)(3))
+        ssBuilder
+      }
+    }
+
   }
 
   // Polymorphic function
@@ -104,11 +122,11 @@ object SimpleMongoProcess {
   def main(args: Array[String]): Unit = {
 
       if (args.size == 0) {
-        SimpleMongoProcessFunction(LocalConfigurator, Local)
+        SimpleMongoProcessFunction[Home](Configurator.homeInstance, Home())
       } else if (args.size == 6) {
-        SimpleMongoProcessFunction(RemoteClusterConfigurator, RemoteCluster)
+        SimpleMongoProcessFunction[RemoteCluster](Configurator.remoteClusterInstance, RemoteCluster(args))
       } else if (args.size == 4) {
-        SimpleMongoProcessFunction(LocalClusterConfigurator, LocalCluster)
+        SimpleMongoProcessFunction[LocalCluster](Configurator.localClusterInstance, LocalCluster(args))
       } else {
         throw new Throwable("invalid params")
       }
