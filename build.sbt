@@ -14,7 +14,7 @@ libraryDependencies ++= Seq(
 )
 
 mainClass in assembly := some("es.bernal.sparkmongoiot.Analytic")
-assemblyJarName := "analytics-0.6.jar"
+assemblyJarName := "analytics-0.7.jar"
 
 val meta = """META.INF(.)*""".r
 assemblyMergeStrategy in assembly := {
