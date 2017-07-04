@@ -16,7 +16,7 @@ spark-submit \
  --supervise \
  --total-executor-cores 12 \
  --executor-memory 4G \
-/data/analytics-0.6.jar  \
+/data/analytics-0.7.jar  \
 24 172.19.18.77 mydb ed_datapoints myuser mypwd hadoopNfds:8020 MONGO
 ```
 
@@ -29,7 +29,7 @@ spark-submit \
  --supervise \
  --total-executor-cores 12 \
  --executor-memory 4G \
-/data/analytics-0.6.jar  \
+/data/analytics-0.7.jar  \
 24 172.19.18.77 mydb ed_datapoints myuser mypwd hadoopNfds:8020 HADOOP
 ```
 
@@ -45,7 +45,7 @@ spark-submit \
  --total-executor-cores 12 \
  --executor-memory 5G \
  --driver-memory 4G \
- /data/analytics-0.6.jar \
+ /data/analytics-0.7.jar \
  1 172.19.18.77 mydb c_ed_analytics_datapoints myuser mypwd hadoopNfds:8020
 ```
 **Example 2**: Calculate the aggregations of the last hour data stored in MongoDB, collection *c_ed_datapoints* located in 172.19.18.77 with user *myuser* and password *mypwd*, and save the results in collection *c_ed_analytics_datapoints* from the same database
@@ -58,9 +58,8 @@ spark-submit \
  --total-executor-cores 12 \
  --executor-memory 5G \
  --driver-memory 4G \
- /data/analytics-0.6.jar \
+ /data/analytics-0.7.jar \
  1 172.19.18.77 mydb c_ed_analytics_datapoints myuser mypwd MONGO
 ```
 ## SimpleMongoData
 The simple application just read data from MongoDB by using again Spark Mongo Connector and clone it in another collection. This application searchs to look up the effects to avoid the *shuffling* issue.
-

@@ -36,8 +36,7 @@ object Analytic {
 
   trait DataLoader // V classes
   class MongoDbLoader(
-                           val hours: Double = 234.5256,
-                           val ss: SparkSession
+                           val hours: Double = 234.5256
                          ) extends DataLoader
   class HadoopLoader(
                         val hdfsHostAndPort: String = Constants.hdfsHostPort
@@ -244,11 +243,6 @@ object Analytic {
 
   }
 
-
-  def main(args: Array[String]): Unit = {
-     // TODO how to call the polymorphic function
-  }
-
   def isValueContinuous(ds: String): Boolean = {
     if (ds.equals("coverage"))
       true
@@ -256,5 +250,19 @@ object Analytic {
       false
   }
 
+  def main(args: Array[String]): Unit = {
+    if (args.length == 0) {
+      // home or local case, depending on what to test (mongo load by default)
+      analyticFunction(Configurator.homeInstance, OriginDataHandler.homeBymongoDbInstance, new Home(), new MongoDbLoader())
+    } else if (args.length == 7) {
+      if (args(6).equals(Constants.modeMongoConn)) {
+        // RemoteCluster Mongo originated data
+        analyticFunction(Configurator.remoteClusterInstance, OriginDataHandler.remoteClusterBymongoDbInstance, new RemoteCluster(args), new MongoDbLoader())
+      } else {
+        // RemoteCluster Hadoop originated data
+        analyticFunction(Configurator.remoteClusterInstance, OriginDataHandler.remoteClusterByHadoopInstance, new RemoteCluster(args), new HadoopLoader(args(6)))
+      }
+    }
+  }
 
 }
