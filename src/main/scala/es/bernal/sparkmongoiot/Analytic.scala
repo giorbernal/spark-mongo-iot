@@ -23,7 +23,6 @@ object Analytic {
   // Basic parameter classes
   trait Environment // T classes
   class Home(
-                    val hours: Double = 234.5256,
                     val ip: String = Constants.ip,
                     val database: String = Constants.database,
                     val outputCollection: String = Constants.collectionOutAgg
