@@ -1,6 +1,6 @@
 name := "spark-mongo-iot"
 
-version := "1.0"
+version := "1.2"
 
 scalaVersion := "2.11.8"
 
@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
 )
 
 mainClass in assembly := some("es.bernal.sparkmongoiot.Analytic")
-assemblyJarName := "analytics-0.7.jar"
+assemblyJarName := "analytics-1.2.jar"
 
 val meta = """META.INF(.)*""".r
 assemblyMergeStrategy in assembly := {
