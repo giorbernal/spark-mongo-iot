@@ -11,6 +11,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.hive.thriftserver.HiveThriftServer2
 import org.bson.Document
 
 import scala.collection.mutable.ListBuffer
@@ -82,6 +83,21 @@ object Analytic {
       }
     }
 
+    implicit def homeDynamicInstance = new Configurator[Home, DynamicsAnalytics] {
+      def getSparkSessionBuilder(t: Home): SparkSession.Builder = {
+        val ssBuilder = SparkSession.builder()
+          .appName("spark-mongo-iot")
+          .master("local[*]")
+          .enableHiveSupport()
+          .config("spark.mongodb.input.uri", "mongodb://" + t.ip + "/"+ t.database + "." + Constants.collectionIn)
+          .config("spark.mongodb.output.uri", "mongodb://" + t.ip + "/"+ t.database + "." + t.outputCollection)
+        ssBuilder
+      }
+      def getHadoopRdd(t: Home, sparkSession: SparkSession): RDD[String] = {
+        sparkSession.sparkContext.textFile(Constants.my_hdfs_fs + "/" + Constants.hdfsFile)
+      }
+    }
+
     implicit def localInstance = new Configurator[Local, StaticAnalytics] {
       def getSparkSessionBuilder(t: Local): SparkSession.Builder = {
         val ssBuilder = SparkSession.builder()
@@ -142,6 +158,11 @@ object Analytic {
         getMongoDbBaseDataFrame(v, sparkSession)
       }
     }
+    implicit def homeBymongoDbDynamicInstance = new OriginDataHandler[Home, MongoDbLoader,DynamicsAnalytics] {
+      def getBaseDataFrame(c: Configurator[Home,DynamicsAnalytics], t: Home, v: MongoDbLoader, sparkSession: SparkSession): DataFrame = {
+        getMongoDbBaseDataFrame(v, sparkSession)
+      }
+    }
     implicit def localBymongoDbInstance = new OriginDataHandler[Local, MongoDbLoader, StaticAnalytics] {
       def getBaseDataFrame(c: Configurator[Local, StaticAnalytics], t: Local, v: MongoDbLoader, sparkSession: SparkSession): DataFrame = {
         getMongoDbBaseDataFrame(v, sparkSession)
@@ -172,12 +193,9 @@ object Analytic {
     implicit def staticAnalyzerInstance = new Analyzer[StaticAnalytics] {
       def handleDataFrame(sparkSession: SparkSession, df: DataFrame): Unit = {
         import sparkSession.sqlContext.implicits._
-        val rddProjected = df.select(col("organizationId"),col("channelId"),
-          col("datastreamId"), col("deviceId"), col("date.epoch").as("date_epoch"),
-          col("value")).cache
 
         // Extract list of datastreams
-        val datastreams = rddProjected.select("datastreamId").distinct()
+        val datastreams = df.select("datastreamId").distinct()
 
         val it = datastreams.toLocalIterator()
         val dsList = new ListBuffer[String]()
@@ -189,7 +207,7 @@ object Analytic {
         val allDs = dsList.toList.par
 
         allDs.foreach(ds => {
-          val rddForDs = rddProjected.where($"datastreamId" === ds)
+          val rddForDs = df.where($"datastreamId" === ds)
 
           if (isValueContinuous(ds)) {
             val rddForDsAgg = rddForDs
@@ -237,7 +255,33 @@ object Analytic {
     }
     implicit def dynamicAnalyzerInstance = new Analyzer[DynamicsAnalytics] {
       def handleDataFrame(sparkSession: SparkSession, df: DataFrame): Unit = {
-        // TODO start Thrift Server ...
+
+        val table_name: String = "ed_datapoints"
+        val query_monitor: String = "select * from " + table_name + " limit 1"
+        val sql = sparkSession.sqlContext;
+        sql.setConf("hive.server2.thrift.port", Constants.default_port.toString);
+
+        df.write.saveAsTable(table_name);
+
+        HiveThriftServer2.startWithContext(sql);
+
+        println(">> Thrift Server started!");
+
+        // Monitor system to stop de Job
+        var isThereData: Boolean = true;
+        while (isThereData) {
+          Thread.sleep(Constants.keep_alive);
+          try {
+            val dfTest = sparkSession.sql(query_monitor);
+            dfTest.count();
+          } catch {
+            case e: Exception => {
+              isThereData = false
+              println("No data. Finishing Job and Thrift Server")
+            }
+          }
+        }
+
       }
     }
   }
@@ -256,8 +300,12 @@ object Analytic {
 
     var rdd: DataFrame = originDataHandler.getBaseDataFrame(configurator, t, v, ss)
 
+    val rddProjected = rdd.select(col("organizationId"),col("channelId"),
+      col("datastreamId"), col("deviceId"), col("date.epoch").as("date_epoch"),
+      col("value")).cache
+
     // From here, work with DataFrame
-    analyzer.handleDataFrame(ss, rdd)
+    analyzer.handleDataFrame(ss, rddProjected)
 
     val timeend: Long = System.currentTimeMillis()
 
@@ -278,6 +326,9 @@ object Analytic {
     if (args.length == 0) {
       // home or local case, depending on what to test (mongo load by default)
       analyticFunction(Configurator.homeInstance, OriginDataHandler.homeBymongoDbInstance, Analayzer.staticAnalyzerInstance, new Home(), new MongoDbLoader())
+
+      // home or local case, Same as prevoius, but dynamic
+      //analyticFunction(Configurator.homeDynamicInstance, OriginDataHandler.homeBymongoDbDynamicInstance, Analayzer.dynamicAnalyzerInstance, new Home(), new MongoDbLoader())
     } else if (args.length == 7) {
       if (args(6).equals(Constants.modeMongoConn)) {
         // RemoteCluster Mongo originated data

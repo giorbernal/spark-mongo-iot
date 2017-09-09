@@ -5,13 +5,17 @@ package es.bernal.sparkmongoiot.utils
   */
 object Constants {
 
-  val ip: String = "172.19.18.77"
-  val database: String = "odmtest"
+  val ip: String = "192.168.1.209"
+  val database: String = "poc"
   val collectionIn: String = "c_ed_datapoints"
   val collectionOut: String = "c_ed_datapoints"
-  val collectionOutAgg: String = "c_ed_analytics_datapoints_spark"
+  val collectionOutAgg: String = "c_ed_analytics_24h"
   val user: String = "odmtest"
   val password: String = "amplia"
+
+  // Thrift-Server default config
+  val keep_alive: Long = 60000
+  val default_port: Int = 10002
 
   // Hadoop config
   val hdfsFile: String = "ed_datapoints"
